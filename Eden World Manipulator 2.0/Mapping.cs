@@ -18,82 +18,82 @@ namespace Eden_World_Maniputor_2._0
 
         public static Bitmap NormalMap(World world, Bitmap m_Canvas)
         {
-            foreach (int address in world.Chunks.Keys)
+            byte[] worldBytes = world.Bytes;
+            foreach (var chunk in world.Chunks)
             {
-                int baseX = (world.Chunks[address].X - world.WorldArea.X) * 16, baseY = (world.Chunks[address].Y - world.WorldArea.Y) * 16;
+                int address = chunk.Key;
+                int baseX = (chunk.Value.X - world.WorldArea.X) * 16;
+                int baseY = (chunk.Value.Y - world.WorldArea.Y) * 16;
+
                 for (int x = 0; x < 16; x++)
                 {
-                    for (int y = 0; y < 16; y++, painted = false)
+                    int xOffset = x * 256;
+                    for (int y = 0; y < 16; y++)
                     {
+                        int voxelOffset = xOffset + y * 16;
                         for (int baseHeight = 3; baseHeight >= 0; baseHeight--)
                         {
+                            int layerOffset = address + baseHeight * 8192 + voxelOffset;
                             for (int z = 15; z >= 0; z--)
                             {
-                                if (world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z] != 0) //Block
+                                int blockIndex = layerOffset + z;
+                                byte blockId = worldBytes[blockIndex];
+                                if (blockId == 0)
                                 {
-                                    block++;
-                                    if (world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z + 4096] != 0 && painted == false) //Color
-                                    {
-                                        int pen = world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z + 4096] - 1;
-                                        m_Canvas.SetPixel(baseX + x, baseY + y, MapColors.Painted[pen]);
-                                        painted = true;
-                                    }
-                                    else if (painted == false)
-                                    {
-                                        int pen = world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z] - 1;
-                                        m_Canvas.SetPixel(baseX + x, baseY + y, MapColors.Unpainted[pen]);
-                                        painted = true;
-                                    }
+                                    continue;
                                 }
+
+                                block++;
+                                byte paintId = worldBytes[blockIndex + 4096];
+                                int pen = (paintId != 0 ? paintId : blockId) - 1;
+                                m_Canvas.SetPixel(baseX + x, baseY + y, paintId != 0 ? MapColors.Painted[pen] : MapColors.Unpainted[pen]);
+                                goto PixelDone;
                             }
                         }
+
+                        PixelDone:;
                     }
                 }
             }
+
             return m_Canvas;
         }
 
+
         public static Bitmap ZSlice(World world, Bitmap newCanvas, int cut)
         {
-            foreach (int address in world.Chunks.Keys)
+            int cutBaseHeight = cut / 16;
+            int cutZ = cut % 16;
+
+            byte[] worldBytes = world.Bytes;
+            foreach (var chunk in world.Chunks)
             {
-                int baseX = (world.Chunks[address].X - world.WorldArea.X) * 16, baseY = (world.Chunks[address].Y - world.WorldArea.Y) * 16;
+                int address = chunk.Key;
+                int baseX = (chunk.Value.X - world.WorldArea.X) * 16;
+                int baseY = (chunk.Value.Y - world.WorldArea.Y) * 16;
+
                 for (int x = 0; x < 16; x++)
                 {
-                    for (int y = 0; y < 16; y++, painted = false)
+                    int xOffset = x * 256;
+                    for (int y = 0; y < 16; y++)
                     {
-                        for (int baseHeight = 3; baseHeight >= 0; baseHeight--)
+                        int blockIndex = address + cutBaseHeight * 8192 + xOffset + y * 16 + cutZ;
+                        byte blockId = worldBytes[blockIndex];
+                        if (blockId == 0)
                         {
-                            for (int z = 15; z >= 0; z--)
-                            {
-                                if (world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z] != 0 && ((baseHeight * 16) + z) == cut) //Block
-                                {
-                                    if (world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z + 4096] != 0 && painted == false) //Color
-                                    {
-                                        int pen = world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z + 4096] - 1;
-                                        newCanvas.SetPixel(baseX + x, baseY + y, MapColors.Painted[pen]);
-                                        painted = true;
-                                        break;
-                                    }
-                                    else if (painted == false)
-                                    {
-                                        int pen = world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z] - 1;
-                                        newCanvas.SetPixel(baseX + x, baseY + y, MapColors.Unpainted[pen]);
-                                        painted = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            if (painted)
-                            {
-                                break;
-                            }
+                            continue;
                         }
+
+                        byte paintId = worldBytes[blockIndex + 4096];
+                        int pen = (paintId != 0 ? paintId : blockId) - 1;
+                        newCanvas.SetPixel(baseX + x, baseY + y, paintId != 0 ? MapColors.Painted[pen] : MapColors.Unpainted[pen]);
                     }
                 }
             }
+
             return newCanvas;
         }
+
 
         public static Bitmap BlendNormalMap(World world, Bitmap newCanvas, Bitmap  tempCanvas)
         {
@@ -182,63 +182,80 @@ namespace Eden_World_Maniputor_2._0
 
         public static Bitmap Treasure(World world, Bitmap newCanvas)
         {
-            foreach (int address in world.Chunks.Keys)
+            byte[] worldBytes = world.Bytes;
+            foreach (var chunk in world.Chunks)
             {
-                int baseX = (world.Chunks[address].X - world.WorldArea.X) * 16, baseY = (world.Chunks[address].Y - world.WorldArea.Y) * 16;
+                int address = chunk.Key;
+                int baseX = (chunk.Value.X - world.WorldArea.X) * 16;
+                int baseY = (chunk.Value.Y - world.WorldArea.Y) * 16;
+
                 for (int x = 0; x < 16; x++)
                 {
-                    for (int y = 0; y < 16; y++, painted = false)
+                    int xOffset = x * 256;
+                    for (int y = 0; y < 16; y++)
                     {
+                        int voxelOffset = xOffset + y * 16;
                         for (int baseHeight = 3; baseHeight >= 0; baseHeight--)
                         {
+                            int layerOffset = address + baseHeight * 8192 + voxelOffset;
                             for (int z = 15; z >= 0; z--)
                             {
-                                if (world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z] != 0) //Block
+                                int blockIndex = layerOffset + z;
+                                byte blockId = worldBytes[blockIndex];
+                                if (blockId == 0)
                                 {
-                                    if (world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z + 4096] != 0 && painted == false)
-                                    {
-                                        int pen = world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z + 4096] - 1;
-                                        newCanvas.SetPixel(baseX + x, baseY + y, MapColors.Painted[pen]);
-                                        painted = true;
-                                    }
-                                    else if (painted == false)
-                                    {
-                                        int pen = world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z] - 1;
-                                        newCanvas.SetPixel(baseX + x, baseY + y, MapColors.Unpainted[pen]);
-                                        painted = true;
-                                    }
+                                    continue;
                                 }
+
+                                byte paintId = worldBytes[blockIndex + 4096];
+                                int pen = (paintId != 0 ? paintId : blockId) - 1;
+                                newCanvas.SetPixel(baseX + x, baseY + y, paintId != 0 ? MapColors.Painted[pen] : MapColors.Unpainted[pen]);
+                                goto TopPixelDone;
                             }
                         }
+
+                        TopPixelDone:;
                     }
                 }
             }
-            var brush = new SolidBrush(Color.FromArgb(255, 255, 0, 0));
-            foreach (int address in world.Chunks.Keys)
+
+            using (var brush = new SolidBrush(Color.FromArgb(255, 255, 0, 0)))
+            using (var g = Graphics.FromImage(newCanvas))
             {
-                int baseX = (world.Chunks[address].X - world.WorldArea.X) * 16, baseY = (world.Chunks[address].Y - world.WorldArea.Y) * 16;
-                for (int x = 0; x < 16; x++)
+                foreach (var chunk in world.Chunks)
                 {
-                    for (int y = 0; y < 16; y++, painted = false)
+                    int address = chunk.Key;
+                    int baseX = (chunk.Value.X - world.WorldArea.X) * 16;
+                    int baseY = (chunk.Value.Y - world.WorldArea.Y) * 16;
+
+                    for (int x = 0; x < 16; x++)
                     {
-                        for (int baseHeight = 3; baseHeight >= 0; baseHeight--)
+                        int xOffset = x * 256;
+                        for (int y = 0; y < 16; y++)
                         {
-                            for (int z = 15; z >= 0; z--)
+                            int voxelOffset = xOffset + y * 16;
+                            for (int baseHeight = 3; baseHeight >= 0; baseHeight--)
                             {
-                                if (world.Bytes[address + baseHeight * 8192 + x * 256 + y * 16 + z] == 71)
+                                int layerOffset = address + baseHeight * 8192 + voxelOffset;
+                                for (int z = 15; z >= 0; z--)
                                 {
-                                    using (var g = Graphics.FromImage(newCanvas))
+                                    if (worldBytes[layerOffset + z] == 71)
                                     {
                                         g.FillEllipse(brush, baseX + x, baseY + y, 10, 10);
+                                        goto TreasureDone;
                                     }
                                 }
                             }
+
+                            TreasureDone:;
                         }
                     }
                 }
             }
+
             return newCanvas;
         }
+
 
         // Doesn't work anymore
         public static Bitmap YSlice(World world, Bitmap newCanvas, Bitmap tempCanvas, int cut)
